@@ -35,7 +35,7 @@ public abstract class ValidFactory {
     }
 
     public static ListBuffer<JCTree.JCStatement> generalValidMethod(JCTree.JCAnnotation annotation, TreeMaker treeMaker, Names names, Name param,JCTree.JCAssign assignExpr){
-        ListBuffer<JCTree.JCStatement> testStatement2 = new ListBuffer<>();
+        ListBuffer<JCTree.JCStatement> testStatement = new ListBuffer<>();
 
 
 
@@ -47,7 +47,7 @@ public abstract class ValidFactory {
         for (JCTree.JCExpression var :annotation.args){
             JCTree.JCAssign var1 = (JCTree.JCAssign) var;
             if (var1.lhs.toString().equals("message")){
-                message  = var1.rhs.toString();
+                message  = (String) ((JCTree.JCLiteral)var1.rhs).value;
                 break;
             }
         }
@@ -71,9 +71,9 @@ public abstract class ValidFactory {
                         exception, // 条件成立的语句
                         null  // 条件不成立的语句
                 );
-                testStatement2.append(anIf);
-                testStatement2.append(treeMaker.Exec(assignExpr));
-                return testStatement2;
+                testStatement.append(anIf);
+                testStatement.append(treeMaker.Exec(assignExpr));
+                return testStatement;
             case NotBlank:
                 System.out.println(1);
                 break;
@@ -82,44 +82,45 @@ public abstract class ValidFactory {
                 for (JCTree.JCExpression var :annotation.args){
                     JCTree.JCAssign var1 = (JCTree.JCAssign) var;
                     if (var1.lhs.toString().equals("value")){
-                        regex  = var1.rhs.toString();
+                        regex  = (String) ((JCTree.JCLiteral)var1.rhs).value;
                         break;
                     }
                 }
 
-
+                //正则匹配语法
                 List<JCTree.JCExpression> nil = List.nil();
                 nil = nil.prepend(treeMaker.Ident(param));
                 nil = nil.prepend(treeMaker.Literal(regex));
 
-
-
-
-                JCTree.JCMethodInvocation condition1 = treeMaker.Apply(List.nil(),
+                JCTree.JCMethodInvocation regexExpr = treeMaker.Apply(List.nil(),
                         treeMaker.Select(treeMaker.Ident(names.fromString("Pattern")), names.fromString("matches")),
                         nil);
 
-
-
-                JCTree.JCIf varIf = treeMaker.If(
-                        treeMaker.Parens(condition1),
-                        treeMaker.Exec(assignExpr), // 条件成立的语句
-                        null  // 条件不成立的语句
-                );
                 ListBuffer<JCTree.JCStatement> temp = new ListBuffer<>();
-                temp.append(varIf);
+                temp.append(treeMaker.Exec(assignExpr));
+                temp.append(treeMaker.Return(null));
 
-                JCTree.JCBinary condition2 = treeMaker.Binary(JCTree.Tag.AND, treeMaker.Binary(JCTree.Tag.NE,treeMaker.Ident(param),treeMaker.Literal(TypeTag.BOT, null)), treeMaker.Unary(JCTree.Tag.NOT,treeMaker.Apply(List.nil(),
+                //正则if
+                JCTree.JCIf varIf = treeMaker.If(
+                        treeMaker.Parens(regexExpr),
+                        treeMaker.Block(0, temp.toList()) , // 条件成立的语句
+                        null // 条件不成立的语句
+                );
+
+
+                //外层if
+                ListBuffer<JCTree.JCStatement> temp1 = new ListBuffer<>();
+                temp1.append(varIf);
+                JCTree.JCBinary nullOrEmptyExpr = treeMaker.Binary(JCTree.Tag.AND, treeMaker.Binary(JCTree.Tag.NE,treeMaker.Ident(param),treeMaker.Literal(TypeTag.BOT, null)), treeMaker.Unary(JCTree.Tag.NOT,treeMaker.Apply(List.nil(),
                         treeMaker.Select(treeMaker.Ident(param), names.fromString("isEmpty")),
                         List.nil())));
 
-                JCTree.JCIf anIf1 = treeMaker.If(condition2,
-                        treeMaker.Block(0, temp.toList()),
+                JCTree.JCIf anIf1 = treeMaker.If(nullOrEmptyExpr,
+                        treeMaker.Block(0, temp1.toList()),
                         null);
-                testStatement2.append(anIf1);
-                testStatement2.append(exception);
-
-                return testStatement2;
+                testStatement.append(anIf1);
+                testStatement.append(exception);
+                return testStatement;
             default:
                 throw new IllegalStateException("Unexpected value: " + s);
         }
